@@ -1,10 +1,6 @@
-﻿
-using UnityEngine;
-
-public class Spin : MonoBehaviour
+﻿using UnityEngine;
+public class Spin : MonoBehaviour 
 {
-    void Update()
-    {
-        transform.Rotate(new Vector3(10, 5, 0));
-    }
+    public float speed = 20f;
+    void Update() => transform.Rotate( speed * new Vector3(2, 1, 0) * Time.deltaTime );
 }
