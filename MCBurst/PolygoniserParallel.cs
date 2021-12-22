@@ -1,7 +1,6 @@
 ﻿
 namespace MCBurst
 {
-    using System.Threading;
     using Unity.Burst;
 	using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -34,7 +33,7 @@ namespace MCBurst
 		public NativeArray<VertexBuffer> polygons;
 		public NativeArray<ushort> indicies;
 		public NativeArray<int> counter;
-		public SolverParallel.CellParallel cell;
+		public CellParallel cell;
 
 		public PolygonParallelLists Allocate( PolygoniserParams parameters )
 		{
@@ -78,7 +77,6 @@ namespace MCBurst
 			PolygoniserParams parameters,
 			ref NativeArray<float4> input,
 			PolygonParallelLists lists,
-			out PolygoniserParallel job,
 			JobHandle dependency = default
 		)
 		{
@@ -86,18 +84,26 @@ namespace MCBurst
 
 			lists.Clear();
 
-			job = new PolygoniserParallel
+			var J1 = new PolygoniserParallel
 			{
 				parameters = parameters,
 				input = input,
 				output = lists.triangles.AsParallelWriter(),
 				counter = lists.counter,
 				cell = lists.cell,
+
+#if PROFILE_MARKERS // -----------------------------------------------
+				profilerMarker1 = new Unity.Profiling.ProfilerMarker("Marker 1"),
+				profilerMarker2 = new Unity.Profiling.ProfilerMarker("Marker 2"),
+				profilerMarker3 = new Unity.Profiling.ProfilerMarker("Marker 3"),
+#endif // -----------------------------------------------
+
 			};
 
-			var handle = job.Schedule( parameters.length, 16, dependency );
+			//var handle = J1.ScheduleBatch( parameters.length, 256, dependency );
+            var handle = J1.Schedule( parameters.length, 256, dependency );
 
-			var J2 = new PolygoniserArray
+            var J2 = new PolygoniserArray
 			{
 				parameters	= parameters,
 				input		= lists.triangles,
@@ -173,8 +179,8 @@ namespace MCBurst
 		}
 	}
 
-	[BurstCompile(FloatPrecision.Standard, FloatMode.Fast, CompileSynchronously = true)]
-	public unsafe struct PolygoniserParallel : IJobParallelFor
+    [BurstCompile(FloatPrecision.Standard, FloatMode.Fast, CompileSynchronously = true)]
+	public unsafe struct PolygoniserParallel : IJobParallelFor // IJobParallelForBatch
 	{
 		[ReadOnly] public NativeArray<float4> input;
 
@@ -184,14 +190,37 @@ namespace MCBurst
 
 		public NativeArray<int> counter;
 
-		public SolverParallel.CellParallel cell;
+		public CellParallel cell;
 
 		[NativeSetThreadIndex] public int thread_index;
 
-		public void Execute(int i)
-		{
-			int threadIdx = thread_index - 1;
+#if PROFILE_MARKERS // -----------------------------------------------
+		public Unity.Profiling.ProfilerMarker profilerMarker1;
+		public Unity.Profiling.ProfilerMarker profilerMarker2;
+		public Unity.Profiling.ProfilerMarker profilerMarker3;
+#endif // -----------------------------------------------
 
+		public void Execute(int startIndex, int count)
+		{
+			 int thread_i = thread_index - 1;
+            
+			// Debug.Log($"Thread Index {thread_i} , start {startIndex} , count {count}");
+
+            for ( var i = startIndex; i < count; ++i )
+            {
+				ExecuteThreadIndex( i , thread_i );
+			}
+		}
+
+		public void Execute(int i)
+        {
+			int thread_i = thread_index - 1;
+
+			ExecuteThreadIndex( i , thread_i );
+		}
+
+		public void ExecuteThreadIndex(int i , int thread_i )
+        {
 			// find current cell index in 3d space 
 
 			int3 index = Methods.Index1D3D(i, parameters.gridSize);
@@ -204,17 +233,35 @@ namespace MCBurst
 
 			// populate cell with 8 points from input data ( flatten 3d grid )
 
-			SolverParallel.FillCellPoints( ref this , index, threadIdx );
+#if PROFILE_MARKERS // -----------------------------------------------
+			profilerMarker1.Begin();
+#endif // -----------------------------------------------
+
+			SolverParallel.FillCellPoints(ref this, index, thread_i);
+
+
+#if PROFILE_MARKERS // -----------------------------------------------
+			profilerMarker1.End();
+			profilerMarker2.Begin();
+#endif // -----------------------------------------------
 
 			// compute cell verticies ( cell.triangles & cell.count ) where each triangle is 3 points ( float3x3 )
 
-			SolverParallel.Polygonise( ref cell, threadIdx, parameters.isolevel );
-			
+			SolverParallel.Polygonise(ref cell, thread_i, parameters.isolevel);
+
+#if PROFILE_MARKERS // -----------------------------------------------
+			profilerMarker2.End();
+			profilerMarker3.Begin();
+#endif // -----------------------------------------------
+
 			// populate output data 
 
-			SolverParallel.WriteOutput( ref this, threadIdx );
-		}
+			SolverParallel.WriteOutput(ref this, thread_i);
 
+#if PROFILE_MARKERS // -----------------------------------------------
+			profilerMarker3.End();
+#endif // -----------------------------------------------
+		}
 	}
 
 	// to be used, to get the data layout match exactly what it needs to be.

@@ -7,6 +7,35 @@
 
     public static class NoiseBuilder
     {
+
+
+
+
+        [BurstCompile(FloatPrecision.Standard, FloatMode.Fast, CompileSynchronously = true)]
+        public struct FlatPerlinNoise : IJobParallelFor
+        {
+            public int2 size;
+            public int2 offset;
+            public int octave;
+            public float scale;
+
+            [WriteOnly] public NativeArray<float> values;
+
+            public void Execute( int i )
+            {
+                int2 index = Methods.Index1D2D( i , size );
+
+                var value = Perlin.Fbm( ( offset + (float2) index ) * scale , octave );
+
+                //noise.cellular(  ) 
+
+                //var value = Perlin.Noise( ( offset + (float2) index ) * scale ) + 0.5f;
+
+                values[ i ] = value;
+            }
+        }
+
+
         [BurstCompile(FloatPrecision.Standard, FloatMode.Fast, CompileSynchronously = true)]
         public struct FillGridHeightJob : IJobParallelFor
         {
@@ -28,11 +57,17 @@
 
                 var position = positionScale * normalized;
 
-                var value = Perlin.Noise( noiseScale * ( normalized.xz + positionOffset ) ) * normalized.y ;
+                var loc = noiseScale * ( normalized.xz + positionOffset );
+
+                //var value = UnityEngine.Mathf.PerlinNoise( loc.x, loc.y ) * normalized.y;
+
+                var value = ( Perlin.Noise( loc ) + 1 ) / 2f * normalized.y;
 
                 value = math.remap( 0, 1, remap.x, remap.y, value );
 
-                data[ i ] = new float4( position, value );
+                //UnityEngine.Debug.Log( value );
+
+                data[ i ] = new float4( position, math.clamp( value , 0, 1 ) );
             }
         }
 

@@ -9,6 +9,9 @@
 
     using Unity.Mathematics;
     
+    //  Note Nosie output is ranged between -1/2 and +1/2
+
+
     public static class Perlin
     {
         #region Noise functions
@@ -34,7 +37,7 @@
             return Lerp(v, Lerp(u, Grad(perm[A], x, y), Grad(perm[B], x - 1, y)),
                            Lerp(u, Grad(perm[A + 1], x, y - 1), Grad(perm[B + 1], x - 1, y - 1)));
         }
-
+        
         public static float Noise(float2 coord)
         {
             return Noise(coord.x, coord.y);

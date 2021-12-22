@@ -102,13 +102,6 @@ namespace MCBurst
                     // write triangle row 
 
                     SetFloat3x3Row( ref t, i, v );
-
-                    //switch ( i ) // /!\ float3x3 only has get :: public ref float3 this[int index] { get; }
-                    //{
-                    //    case 0 : t.c0 = v ; break;
-                    //    case 1 : t.c1 = v ; break;
-                    //    case 2 : t.c2 = v ; break;
-                    //}
                 }
 
                 cell.triangles[ cell.count ] = t;
@@ -138,14 +131,16 @@ namespace MCBurst
             }
         }
 
+        public const float IzSmal = 1e-5f;
+
         public static float3 VertexInterp(float isolevel, float4 p1, float4 p2)
         {
             // Smooth vertex interpolation between two points (xyz) the value on each point (w) 
             // computed by using the relevant iso level
 
-            if ( math.abs( isolevel - p1.w ) < 1e-5f)  return p1.xyz;
-            if ( math.abs( isolevel - p2.w ) < 1e-5f)  return p2.xyz;
-            if ( math.abs( p1.w - p2.w     ) < 1e-5f)  return p1.xyz;
+            if ( math.abs( isolevel - p1.w ) < IzSmal )  return p1.xyz;
+            if ( math.abs( isolevel - p2.w ) < IzSmal )  return p2.xyz;
+            if ( math.abs( p1.w - p2.w     ) < IzSmal )  return p1.xyz;
 
             float t = (isolevel - p1.w) / (p2.w - p1.w);
 

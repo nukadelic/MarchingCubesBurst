@@ -12,13 +12,18 @@ namespace MCBurst
 
         public static void Polygonise(ref CellParallel cell, int thread_index, float isolevel)
         {
-            cell.SetCount(thread_index, 0);
+            cell.SetCount( thread_index , 0 );
 
             int configurationIndex = 0;
 
             for (var i = 0; i < 8; ++i)
+            {
+                 //UnityEngine.Debug.Log($"Cell[{thread_index},{i}] = " + cell.GetPoint( thread_index, i ) );
+
                 if (cell.GetPoint(thread_index, i).w < isolevel)
                     configurationIndex |= 1 << i;
+
+            }
 
             var edge = Tables.edge[configurationIndex];
 
@@ -44,9 +49,12 @@ namespace MCBurst
 
             int c = 0;
 
+            // UnityEngine.Debug.Log( "First Config Index[" + configurationIndex + "] : " + Tables.triangle[ 16 * configurationIndex + c] );
+
             while (Tables.triangle[16 * configurationIndex + c] != -1)
             {
                 var _count = cell.GetCount(thread_index);
+
                 var _triangle = cell.GetTriangle(thread_index, _count);
 
                 for (var i = 0; i < 3; ++i)
@@ -61,6 +69,7 @@ namespace MCBurst
                 }
 
                 cell.SetTriangle(thread_index, _count, _triangle);
+
                 cell.SetCount(thread_index, _count + 1);
 
                 c += 3;
@@ -80,7 +89,11 @@ namespace MCBurst
 
                 var flat_index = Methods.Index3D1D( index + offset, job.parameters.gridSize );
 
+                 //UnityEngine.Debug.Log("Set cell " + thread_index + " , " + c + " = " + job.input[ flat_index ] );
+
                 job.cell.SetPoint(thread_index, c, job.input[ flat_index ] );
+
+                // UnityEngine.Debug.Log("Get cell = " + job.cell.GetPoint( thread_index, c ) );
             }
         }
 
@@ -88,7 +101,9 @@ namespace MCBurst
         {
             bool flip_uvs = true;
 
-            var _count = job.cell.GetCount(thread_index);
+            var _count = job.cell.GetCount( thread_index );
+            
+            Interlocked.Add( ref ( ( int* ) job.counter.GetUnsafePtr() ) [ 0 ] , 3 * _count );
 
             for (var t = 0; t < _count; ++t)
             {
@@ -98,47 +113,44 @@ namespace MCBurst
 
                 job.output.AddNoResize( data );    
             }
-
-            Interlocked.Add( ref ( ( int* ) job.counter.GetUnsafePtr() ) [ 0 ] , 3 * _count );
         }
+    }
 
-        public struct CellParallel
+    public struct CellParallel
+    {
+        [NativeDisableParallelForRestriction] public NativeArray<float4> points;
+        [NativeDisableParallelForRestriction] public NativeArray<float3> vertlist;
+        [NativeDisableParallelForRestriction] public NativeArray<float3x3> triangles;
+        [NativeDisableParallelForRestriction] public NativeArray<int> count;
+
+        // Each thread can only access its local memory region shifted by the value of thread_index 
+
+        public int GetCount(int thread_index) => count[thread_index];
+        public void SetCount(int thread_index, int value) => count[thread_index] = value;
+        public float4 GetPoint(int thread_index, int index) => points[thread_index * Cell.points_count + index];
+        public void SetPoint(int thread_index, int index, float4 value) => points[thread_index * Cell.points_count + index] = value;
+        public float3 GetVert(int thread_index, int index) => vertlist[thread_index * Cell.vertlist_count + index];
+        public void SetVert(int thread_index, int index, float3 value) => vertlist[thread_index * Cell.vertlist_count + index] = value;
+        public float3x3 GetTriangle(int thread_index, int index) => triangles[thread_index * Cell.triangles_count + index];
+        public void SetTriangle(int thread_index, int index, float3x3 value) => triangles[thread_index * Cell.triangles_count + index] = value;
+
+        public void Allocate(Allocator alloc = (Allocator)4)
         {
-            [NativeDisableParallelForRestriction] public NativeArray<float4> points;
-            [NativeDisableParallelForRestriction] public NativeArray<float3> vertlist;
-            [NativeDisableParallelForRestriction] public NativeArray<float3x3> triangles;
-            [NativeDisableParallelForRestriction] public NativeArray<int> count;
+            var c = System.Environment.ProcessorCount;
 
-            // Each thread can only access its local memory region shifted by the value of thread_index 
+            // allocate memory (x) the processor count 
 
-            public int GetCount(int thread_index) => count[thread_index];
-            public void SetCount(int thread_index, int value) => count[thread_index] = value;
-            public float4 GetPoint(int thread_index, int index) => points[thread_index * Cell.points_count + index];
-            public void SetPoint(int thread_index, int index, float4 value) => points[thread_index * Cell.points_count + index] = value;
-            public float3 GetVert(int thread_index, int index) => vertlist[thread_index * Cell.vertlist_count + index];
-            public void SetVert(int thread_index, int index, float3 value) => vertlist[thread_index * Cell.vertlist_count + index] = value;
-            public float3x3 GetTriangle(int thread_index, int index) => triangles[thread_index * Cell.triangles_count + index];
-            public void SetTriangle(int thread_index, int index, float3x3 value) => triangles[thread_index * Cell.triangles_count + index] = value;
-
-            public void Allocate(Allocator alloc = (Allocator)4)
-            {
-                var c = System.Environment.ProcessorCount;
-
-                // allocate memory (x) the processor count 
-
-                count = new NativeArray<int>(c, alloc);
-                points = new NativeArray<float4>(Cell.points_count * c, alloc);
-                vertlist = new NativeArray<float3>(Cell.vertlist_count * c, alloc);
-                triangles = new NativeArray<float3x3>(Cell.triangles_count * c, alloc);
-            }
-            public void Dispose()
-            {
-                count.Dispose();
-                points.Dispose();
-                vertlist.Dispose();
-                triangles.Dispose();
-            }
+            count = new NativeArray<int>( c , alloc);
+            points = new NativeArray<float4>(Cell.points_count * c, alloc);
+            vertlist = new NativeArray<float3>(Cell.vertlist_count * c, alloc);
+            triangles = new NativeArray<float3x3>(Cell.triangles_count * c, alloc);
         }
-
+        public void Dispose()
+        {
+            count.Dispose();
+            points.Dispose();
+            vertlist.Dispose();
+            triangles.Dispose();
+        }
     }
 }

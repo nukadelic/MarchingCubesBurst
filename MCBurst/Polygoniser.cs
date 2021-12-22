@@ -15,11 +15,11 @@ namespace MCBurst
 			self.Vertices = new NativeList<float3>(alloc);
 			self.Triangles = new NativeList<int>(alloc);
 
-			//#if PROFILE_MARKERS
-			//self.profilerMarker1 = new Unity.Profiling.ProfilerMarker("Marker 1");
-			//self.profilerMarker2 = new Unity.Profiling.ProfilerMarker("Marker 2");
-			//self.profilerMarker3 = new Unity.Profiling.ProfilerMarker("Marker 3");
-			//#endif
+#if PROFILE_MARKERS // -----------------------------------------------
+			self.profilerMarker1 = new Unity.Profiling.ProfilerMarker("Marker 1");
+			self.profilerMarker2 = new Unity.Profiling.ProfilerMarker("Marker 2");
+			self.profilerMarker3 = new Unity.Profiling.ProfilerMarker("Marker 3");
+#endif // -----------------------------------------------
 		}
 
 		static public void Write(Polygoniser self, ref Mesh m)
@@ -63,11 +63,11 @@ namespace MCBurst
 
 		public int length => gridSize.x * gridSize.y * gridSize.z;
 
-  //      #if PROFILE_MARKERS 
-		//public Unity.Profiling.ProfilerMarker profilerMarker1;
-		//public Unity.Profiling.ProfilerMarker profilerMarker2;
-		//public Unity.Profiling.ProfilerMarker profilerMarker3;
-		//#endif
+#if PROFILE_MARKERS // -----------------------------------------------
+		public Unity.Profiling.ProfilerMarker profilerMarker1;
+		public Unity.Profiling.ProfilerMarker profilerMarker2;
+		public Unity.Profiling.ProfilerMarker profilerMarker3;
+#endif // -----------------------------------------------
 
 		public void Execute()
 		{
@@ -77,15 +77,15 @@ namespace MCBurst
             {
 				// find current cell index in 3d space 
 
-				//#if PROFILE_MARKERS
-				//profilerMarker1.Begin();
-				//#endif
-
 				int3 index = Methods.Index1D3D(i, gridSize);
 
 				if (index.x == gridSize.x - 1) continue; 
 				if (index.y == gridSize.y - 1) continue; 
-				if (index.z == gridSize.z - 1) continue; 
+				if (index.z == gridSize.z - 1) continue;
+
+#if PROFILE_MARKERS // -----------------------------------------------
+				profilerMarker1.Begin();
+#endif // -----------------------------------------------
 
 				for (var c = 0; c < 8; ++c)
 				{
@@ -104,23 +104,17 @@ namespace MCBurst
 					cell.points[ c ] = pointsFlatten[ flat_index ];
 				}
 
-				//#if PROFILE_MARKERS
-				//profilerMarker1.End();
-				//#endif
-				
-				//#if PROFILE_MARKERS
-				//profilerMarker2.Begin();
-				//#endif
+#if PROFILE_MARKERS // -----------------------------------------------
+				profilerMarker1.End();
+				profilerMarker2.Begin();
+#endif // -----------------------------------------------
 
 				Solver.Polygonise(ref cell, isolevel);
-				
-				//#if PROFILE_MARKERS
-				//profilerMarker2.End();
-				//#endif
-				
-				//#if PROFILE_MARKERS
-				//profilerMarker3.Begin();
-				//#endif
+
+#if PROFILE_MARKERS // -----------------------------------------------
+				profilerMarker2.End();
+				profilerMarker3.Begin();
+#endif // -----------------------------------------------
 
 				bool flip_uvs = false; // TODO: check if invertVerticies can be done by setting this initial value 
 
@@ -159,9 +153,9 @@ namespace MCBurst
 					flip_uvs = !flip_uvs;
 				}
 
-				//#if PROFILE_MARKERS
-				//profilerMarker3.End();
-				//#endif
+#if PROFILE_MARKERS // -----------------------------------------------
+				profilerMarker3.End();
+#endif // -----------------------------------------------
 			}
 
 			//cell.Dispose();

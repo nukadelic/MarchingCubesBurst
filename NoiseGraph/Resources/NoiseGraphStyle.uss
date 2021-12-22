@@ -1,0 +1,7 @@
+﻿GridBackground
+{
+	--grid-background-color:		var( --noiseGraph-grey-1 );
+	--line-color:					var( --noiseGraph-grey-2 );
+	--thick-line-color:				var( --noiseGraph-grey-3 );
+	--spacing:						var( --noiseGraph-size-1 );
+}

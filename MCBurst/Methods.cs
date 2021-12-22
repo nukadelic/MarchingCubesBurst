@@ -11,7 +11,11 @@ namespace MCBurst
         public static int Index3D1D(int3 i, int3 s) => i.z * (s.x * s.y) + i.y * s.x + i.x;
         public static int3 Index1D3D(int i, int3 s) => new int3(i % s.x, (i / s.x) % s.y, i / (s.x * s.y));
 
-        
+        public static int Index2D1D( int2 i , int2 s ) => i.y * s.x + i.x;
+        public static int2 Index1D2D( int i , int2 s ) => new int2( i % s.x, i / s.x );
+
+
+
         public static U[] CastArray<T, U>(this NativeList<T> list) where U : struct where T : struct
         {
             // enforce size alignment 

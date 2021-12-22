@@ -6,7 +6,7 @@ using MCBurst;
 using Unity.Collections;
 
 [RequireComponent(typeof(MeshFilter))]
-public class DemoScene : MonoBehaviour
+public class TestScene : MonoBehaviour
 {
                         public bool         parallelMC = false;
                         public bool         writeBuffer = true;
@@ -33,7 +33,6 @@ public class DemoScene : MonoBehaviour
 
     NoiseBuilder.FillGridHeightJob job_noise;
     Polygoniser job_polygon;
-    PolygoniserParallel job_polygon_parallel;
 
     MeshFilter filter;
 
@@ -68,7 +67,7 @@ public class DemoScene : MonoBehaviour
 
         job_noise.data = noiseData;
 
-        var noiseHandle = job_noise.Schedule(job_noise.length, 8 );
+        var noiseHandle = job_noise.Schedule(job_noise.length, 256 );
 
         activeParallelMC = parallelMC;
 
@@ -76,9 +75,17 @@ public class DemoScene : MonoBehaviour
         {
             var parameters = new PolygoniserParams { gridSize = gridSize, invertVerticies = inverted, isolevel = isoLevel };
             
-            if( lists == null ) lists = new PolygonParallelLists().Allocate( parameters );
+            if( lists != null && lists.indicies.Length != parameters.length )
+            {
+                lists.Dispose();
+                lists = null;
+            }
+            if( lists == null)
+            {
+                lists = new PolygonParallelLists().Allocate(parameters);
+            }
 
-            handle = PolygoniserParallelM.Schedule( parameters, ref job_noise.data , lists, out job_polygon_parallel, noiseHandle);
+            handle = PolygoniserParallelM.Schedule( parameters, ref job_noise.data , lists, noiseHandle);
         }
         else
         {
